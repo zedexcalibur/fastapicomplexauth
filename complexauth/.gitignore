@@ -17,3 +17,6 @@ build/
 
 # macOS
 .DS_Store
+
+# Databases
+*.db
