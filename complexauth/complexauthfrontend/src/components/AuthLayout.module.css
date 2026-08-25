@@ -1,0 +1,32 @@
+.container {
+    min-height: 100vh;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    background: #f8fafc;
+}
+
+.card {
+    width: 350px;
+
+    padding: 2rem;
+
+    background: white;
+
+    border-radius: 12px;
+
+    border: 1px solid #e5e7eb;
+
+    box-shadow:
+        0 4px 12px rgba(0,0,0,.08);
+}
+
+.title {
+    margin-bottom: 1.5rem;
+
+    font-size: 1.5rem;
+
+    color: #111827;
+}

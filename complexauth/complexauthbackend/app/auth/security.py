@@ -1,0 +1,82 @@
+import secrets
+from fastapi import Request
+from datetime import datetime, timedelta
+from fastapi.security import HTTPBearer
+from jose import jwt, JWTError
+from passlib.context import CryptContext
+
+from app.core.exceptions import raise_error
+
+SECRET_KEY = "super-secret-key"
+REFRESH_SECRET_KEY = "super-secret-refresh-key"
+ALGORITHM = "HS256"
+
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+REFRESH_TOKEN_EXPIRE_DAYS = 7
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Creates object that knows how to hash and verify passwords.
+# CrpytContext = password hashing manager
+# schemes=["bcrypt"] - which hashing algorithms it's allowed to use
+# deprecated="auto" - if a password was hashed with an old or non-preferred scheme
+# recognize that it is outdated and indicate that it should be upgraded.
+
+oauth2_scheme = HTTPBearer()
+# Creates a FastAPI security dependency that knows how to extract a Bearer token 
+# from the Authorization header of an incoming request.
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(plain: str, hashed: str) -> bool:
+    return pwd_context.verify(plain, hashed)
+
+def create_access_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+
+    to_encode.update({"exp": expire})
+
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def create_refresh_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire})
+
+    return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
+
+def generate_csrf_token():
+    return secrets.token_urlsafe(32)
+
+def verify_csrf_token(request: Request):
+    cookie = request.cookies.get("csrf_token")
+    header = request.headers.get("X-CSRF-Token")
+
+    if not cookie or not header or cookie != header:
+        raise_error(403, "CSRF validation failed", "CSRF_VALIDATION_FAILED")
+
+def generate_reset_token() -> str:
+    return secrets.token_urlsafe(32)
+
+def decode_refresh_token(refresh_token: str) -> str:
+    try:
+        payload = jwt.decode(
+            refresh_token,
+            REFRESH_SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+
+        username = payload.get("sub")
+
+        if not username:
+            raise_error(401, "Invalid refresh token", "INVALID_REFRESH_TOKEN")
+
+        return username
+
+    except JWTError:
+        raise_error(401, "Invalid refresh token", "INVALID_REFRESH_TOKEN")
