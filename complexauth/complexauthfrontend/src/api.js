@@ -6,7 +6,7 @@ import axios from "axios";
 // you can write api.get("/me")
 export const api = axios.create({
 
-  baseURL: "http://localhost:8000",
+  baseURL: import.meta.env.VITE_API_URL,
   withCredentials: true, // include cookies in cross-origin requests
 });
 

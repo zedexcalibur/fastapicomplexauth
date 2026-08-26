@@ -9,6 +9,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build: ./complexauthbackend
@@ -16,11 +21,21 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      database:
+        condition: service_healthy
+    volumes:
+      - ./complexauthbackend:/app
 
   frontend:
     build: ./complexauthfrontend
     ports:
       - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ./complexauthfrontend:/app
+      - /app/node_modules
 
 volumes:
   postgres_data:
