@@ -1,16 +1,29 @@
 # FastAPI Complex Auth
 
-A full-stack authentication application built with React, FastAPI and PostgreSQL.
+A full-stack authentication application built with FastAPI, React, PostgreSQL and Docker.
+
+The application implements user registration, login, logout, JWT authentication, refresh-token rotation and password reset functionality.
 
 ## Technologies
 
+### Backend
+- Python
+- FastAPI
+- SQLModel / SQLAlchemy
+- PostgreSQL
+- JWT authentication
+- Uvicorn
+
+### Frontend
 - React
 - Vite
-- FastAPI
-- SQLModel
-- PostgreSQL
+- Axios
+- React Router
+
+### Infrastructure
 - Docker
 - Docker Compose
+- Nginx
 
 ## Features
 
@@ -26,14 +39,36 @@ A full-stack authentication application built with React, FastAPI and PostgreSQL
 - PostgreSQL database
 - Dockerised development environment
 
-### Requirements
+## Requirements
 
-- Docker Desktop
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
+## Running the development version
 
 ### Start the application
 
-1. Clone the repository.
-2. Run:
-    docker compose up --build
-3. Open:
-    http://localhost:5173
+From the project root directory, run:
+  docker compose up --build
+The frontend is available at:
+  http://localhost:5173
+The FastAPI backend is available at:
+  http://localhost:8000
+
+### Stop the application
+
+Press `Ctrl+C` in the terminal or run:
+  docker compose down
+
+## Running the production version
+
+### Start the application
+
+From the project root directory, run:
+  docker compose -f compose.production.yaml up --build
+The application is then available at:
+  http://localhost
+
+### Stop the application
+
+Press `Ctrl+C` in the terminal or run:
+  docker compose -f compose.production.yaml down
