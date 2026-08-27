@@ -1,6 +1,6 @@
 import secrets
 from fastapi import Request
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi.security import HTTPBearer
 from jose import jwt, JWTError
 from passlib.context import CryptContext
@@ -31,24 +31,42 @@ def hash_password(password: str) -> str:
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
+def create_access_token(
+    data: dict,
+    expires_delta: timedelta | None = None,
+    token_version: int | None = None,
+):
     to_encode = data.copy()
 
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
 
     to_encode.update({"exp": expire})
+
+    if token_version is not None:
+        to_encode.update({"token_version": token_version})
 
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 def create_refresh_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode.update({"exp": expire})
 
-    return jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
+    expire = datetime.now(timezone.utc) + timedelta(
+        days=REFRESH_TOKEN_EXPIRE_DAYS
+    )
+
+    to_encode.update({
+        "exp": expire,
+        "jti": secrets.token_urlsafe(32)
+    })
+
+    return jwt.encode(
+        to_encode,
+        REFRESH_SECRET_KEY,
+        algorithm=ALGORITHM
+    )
 
 def generate_csrf_token():
     return secrets.token_urlsafe(32)

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Cookie, Depends, Response
 from fastapi.responses import JSONResponse
 from sqlmodel import select, Session
@@ -6,7 +6,7 @@ from urllib.parse import quote
 
 from app.core.exceptions import raise_error
 from app.database import get_session
-from app.models import User, PasswordReset
+from app.models import User, PasswordReset, RefreshToken
 from app.schemas import (
     RegisterRequest,
     LoginRequest,
@@ -14,19 +14,16 @@ from app.schemas import (
     ResetPasswordRequest
 )
 from app.auth.service import (
-    authenticate_user,
     get_current_user,
     refresh_user,
-    register_user
+    register_user,
+    login_user
 )
 from app.auth.security import (
     generate_reset_token, 
     hash_password, 
     generate_csrf_token,
     verify_csrf_token,
-    create_access_token,
-    create_refresh_token,
-    ACCESS_TOKEN_EXPIRE_MINUTES,
     REFRESH_TOKEN_EXPIRE_DAYS
 )
 from app.email import send_email
@@ -44,32 +41,8 @@ def register(
 
 @auth_router.post("/login")
 def login(data: LoginRequest, session: Session = Depends(get_session)):
-    user = authenticate_user(session, data.username, data.password)
-    if not user:
-        return JSONResponse(
-            status_code=401,
-            content={"detail": "Invalid credentials"}
-        )
 
-    access_token = create_access_token(
-        data={
-            "sub": user.username,
-            # stands for subject.
-            # standard JWT claim. Identifies who the token belongs to.
-            "token_version": user.token_version,
-            # not standard JWT claim. Soemthing like 3 or 4.
-            # Simple way to revoke previously used tokens.
-        },
-        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
-        # timedelta contains days, weeks etc.
-    )
-
-    refresh_token = create_refresh_token(
-        data={
-            "sub": user.username,
-            "token_version": user.token_version,
-        }
-    )
+    access_token, refresh_token, user = login_user(session, data)
 
     csrf_token = generate_csrf_token()
 
@@ -97,7 +70,7 @@ def login(data: LoginRequest, session: Session = Depends(get_session)):
     response.set_cookie(
         key="csrf_token",
         value=csrf_token,
-        httponly=False,  # Must be readable by front end
+        httponly=False,
         secure=False,
         samesite="lax",
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
@@ -133,10 +106,24 @@ def refresh(
 
 @auth_router.post("/logout", dependencies=[Depends(verify_csrf_token)])
 def logout(
+    refresh_token: str = Cookie(None),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_session)
 ):
     user.token_version += 1
+
+    if refresh_token:
+        stored = session.exec(
+            select(RefreshToken).where(
+                RefreshToken.token == refresh_token
+            )
+        ).first()
+
+        if stored:
+            stored.revoked = True
+            session.add(stored)
+
+    session.add(user)
     session.commit()
 
     response = JSONResponse({"message": "Logged out"})
@@ -155,14 +142,14 @@ def forgot_password(
     ).first()
 
     if not user:
-        return {"message": "ok"}
+        return {"message": "If the email exists, a reset link has been sent"}
 
     token = generate_reset_token()
 
     reset_entry = PasswordReset(
         user_id=user.id,
         token=token,
-        expires_at=datetime.utcnow() + timedelta(minutes=15),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
         used=False
     )
 
@@ -200,7 +187,12 @@ def reset_password(
     if reset_entry.used:
         raise_error(400, "Token already used", "TOKEN_ALREADY_USED")
 
-    if reset_entry.expires_at < datetime.utcnow():
+    expires_at = reset_entry.expires_at
+
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if expires_at < datetime.now(timezone.utc):
         raise_error(400, "Token expired", "TOKEN_EXPIRED")
 
     user = session.get(User, reset_entry.user_id)
@@ -209,6 +201,7 @@ def reset_password(
         raise_error(400, "User not found", "USED_NOT_FOUND")
 
     user.password = hash_password(data.new_password)
+    user.token_version += 1
     reset_entry.used = True
 
     session.add(user)

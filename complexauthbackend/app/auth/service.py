@@ -54,13 +54,16 @@ def login_user(session: Session, form_data):
     ).first()
 
     if not user:
-        raise_error(400, "Invalid credentials", "INVALID_CREDENTIALS")
+        raise_error(401, "Invalid credentials", "INVALID_CREDENTIALS")
 
     if not verify_password(form_data.password, user.password):
-        raise_error(400, "Invalid credentials", "INVALID_CREDENTIALS")
+        raise_error(401, "Invalid credentials", "INVALID_CREDENTIALS")
 
     access_token = create_access_token(
-        {"sub": user.username, "token_version": user.token_version}
+        {
+            "sub": user.username,
+            "token_version": user.token_version
+        }
     )
 
     refresh_token = create_refresh_token({"sub": user.username})
@@ -74,7 +77,7 @@ def login_user(session: Session, form_data):
     db_refresh = RefreshToken(
         token=refresh_token,
         username=user.username,
-        expires_at=datetime.utcfromtimestamp(decoded["exp"]),
+        expires_at=datetime.fromtimestamp(decoded["exp"], timezone.utc),
         revoked=False
     )
 
@@ -98,7 +101,7 @@ def refresh_user(session: Session, refresh_token: str):
             "INVALID_REFRESH_TOKEN"
         )
 
-    if stored.expires_at < datetime.utcnow():
+    if stored.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
         raise_error(
             401,
             "Expired refresh token",
@@ -137,8 +140,7 @@ def refresh_user(session: Session, refresh_token: str):
     session.add(new_db)
 
     new_access = create_access_token(
-        {"sub": username},
-        token_version=user.token_version
+        {"sub": username, "token_version": user.token_version}
     )
 
     session.commit()
@@ -147,10 +149,10 @@ def refresh_user(session: Session, refresh_token: str):
 
 def get_current_user(
     token=Depends(oauth2_scheme),
-    # oauth2_scheme reads the HTTP request, looks at the Authorization header
-    # and extracts the Bearer token.
     session: Session = Depends(get_session)
 ):
+    # oauth2_scheme reads the HTTP request, looks at the Authorization header
+    # and extracts the Bearer token.
     try:
         payload = jwt.decode(
             token.credentials,
@@ -158,27 +160,27 @@ def get_current_user(
             algorithms=[ALGORITHM]
         )
     except JWTError:
-        raise_error(400, "Invalid token", "INVALID_TOKEN")
+        raise_error(401, "Invalid token", "INVALID_TOKEN")
 
     username = payload.get("sub")
 
     if not username:
-        raise_error(400, "Invalid token", "INVALID_TOKEN")
+        raise_error(401, "Invalid token", "INVALID_TOKEN")
 
     user = session.exec(
         select(User).where(User.username == username)
     ).first()
 
     if not user:
-        raise_error(400, "User not found", "USER_NOT_FOUND")
+        raise_error(401, "User not found", "USER_NOT_FOUND")
 
     token_version = payload.get("token_version")
 
     if token_version is None:
-        raise_error(400, "Invalid token version", "INVALID_TOKEN_VERSION")
+        raise_error(401, "Invalid token version", "INVALID_TOKEN_VERSION")
 
     if token_version != user.token_version:
-        raise_error(400, "Token revoked", "TOKEN_REVOKED")
+        raise_error(401, "Token revoked", "TOKEN_REVOKED")
 
     return user
 
@@ -200,11 +202,18 @@ def authenticate_user(session: Session, identifier: str, password: str):
 
     return user
 
-def change_password(session: Session, user: User, current_password: str, new_password: str):
+def change_password(
+    session: Session,
+    user: User,
+    current_password: str,
+    new_password: str
+):
     if not verify_password(current_password, user.password):
         raise ValueError("Incorrect password")
 
     user.password = hash_password(new_password)
+    user.token_version += 1
+
     session.add(user)
     session.commit()
 

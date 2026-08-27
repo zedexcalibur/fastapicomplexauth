@@ -42,6 +42,17 @@ The application implements user registration, login, logout, JWT authentication,
 ## Requirements
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- .env files
+
+### .env files
+1. Create an .env file in the main directory with:
+POSTGRES_USER=complexauth
+POSTGRES_PASSWORD=mysecretpassword
+POSTGRES_DB=complexauth
+DATABASE_URL=postgresql://complexauth:mysecretpassword@database:5432/complexauth
+
+2. Create an .env file in complexauthfrontend with:
+VITE_API_URL=http://localhost:8000
 
 ## Running the development version
 

@@ -9,7 +9,7 @@ export default function Settings() {
 
   const [newEmail, setNewEmail] = useState("");
 
-  const { refreshUser } = useAuth();
+  const { refreshUser, logout } = useAuth();
 
   async function handlePasswordChange() {
     await api.post("/change-password", {
@@ -17,13 +17,16 @@ export default function Settings() {
       new_password: newPassword,
     });
 
-    toast.success("Password updated");
+    toast.success("Password updated. Please log in again.");
+
+    await logout();
   }
 
   async function handleEmailChange() {
     await api.post("/change-email", {
       new_email: newEmail,
     });
+
     await refreshUser();
 
     toast.success("Email updated");
@@ -35,28 +38,37 @@ export default function Settings() {
 
       <section>
         <h3>Change Password</h3>
-              <input
-        type="password"
-        placeholder="Current password"
-        onChange={(e) => setCurrentPassword(e.target.value)}
-      />
-      <input
-        type="password"
-        placeholder="New password"
-        onChange={(e) => setNewPassword(e.target.value)}
-      />
-      <button onClick={handlePasswordChange}>Update Password</button>
+
+        <input
+          type="password"
+          placeholder="Current password"
+          onChange={(e) => setCurrentPassword(e.target.value)}
+        />
+
+        <input
+          type="password"
+          placeholder="New password"
+          onChange={(e) => setNewPassword(e.target.value)}
+        />
+
+        <button onClick={handlePasswordChange}>
+          Update Password
+        </button>
       </section>
 
       <hr />
 
       <section>
         <h3>Change Email</h3>
-      <input
-        placeholder="New email"
-        onChange={(e) => setNewEmail(e.target.value)}
-      />
-      <button onClick={handleEmailChange}>Update Email</button>
+
+        <input
+          placeholder="New email"
+          onChange={(e) => setNewEmail(e.target.value)}
+        />
+
+        <button onClick={handleEmailChange}>
+          Update Email
+        </button>
       </section>
     </div>
   );
