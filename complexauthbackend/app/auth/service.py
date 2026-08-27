@@ -66,7 +66,10 @@ def login_user(session: Session, form_data):
         }
     )
 
-    refresh_token = create_refresh_token({"sub": user.username})
+    refresh_token = create_refresh_token(
+        {"sub": user.username},
+        token_version=user.token_version
+    )
 
     decoded = jwt.decode(
         refresh_token,
@@ -108,7 +111,17 @@ def refresh_user(session: Session, refresh_token: str):
             "REFRESH_TOKEN_EXPIRED"
         )
 
-    username = decode_refresh_token(refresh_token)
+    payload = decode_refresh_token(refresh_token)
+    username = payload["sub"]
+
+    token_version = payload.get("token_version")
+
+    if token_version is None:
+        raise_error(
+            401,
+            "Invalid refresh token",
+            "INVALID_REFRESH_TOKEN"
+        )
 
     user = session.exec(
         select(User).where(User.username == username)
@@ -121,10 +134,20 @@ def refresh_user(session: Session, refresh_token: str):
             "USER_NOT_FOUND"
         )
 
+    if token_version != user.token_version:
+        raise_error(
+            401,
+            "Refresh token revoked",
+            "INVALID_REFRESH_TOKEN"
+        )
+
     stored.revoked = True
     session.add(stored)
 
-    new_refresh = create_refresh_token({"sub": username})
+    new_refresh = create_refresh_token(
+        {"sub": user.username},
+        token_version=user.token_version
+    )
 
     expires_at = datetime.now(timezone.utc) + timedelta(
         days=REFRESH_TOKEN_EXPIRE_DAYS

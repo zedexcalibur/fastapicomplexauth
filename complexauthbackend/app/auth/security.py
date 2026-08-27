@@ -50,7 +50,7 @@ def create_access_token(
 
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-def create_refresh_token(data: dict):
+def create_refresh_token(data: dict, token_version: int | None = None):
     to_encode = data.copy()
 
     expire = datetime.now(timezone.utc) + timedelta(
@@ -61,6 +61,9 @@ def create_refresh_token(data: dict):
         "exp": expire,
         "jti": secrets.token_urlsafe(32)
     })
+
+    if token_version is not None:
+        to_encode.update({"token_version": token_version})
 
     return jwt.encode(
         to_encode,
@@ -81,7 +84,7 @@ def verify_csrf_token(request: Request):
 def generate_reset_token() -> str:
     return secrets.token_urlsafe(32)
 
-def decode_refresh_token(refresh_token: str) -> str:
+def decode_refresh_token(refresh_token: str) -> dict:
     try:
         payload = jwt.decode(
             refresh_token,
@@ -92,9 +95,17 @@ def decode_refresh_token(refresh_token: str) -> str:
         username = payload.get("sub")
 
         if not username:
-            raise_error(401, "Invalid refresh token", "INVALID_REFRESH_TOKEN")
+            raise_error(
+                401,
+                "Invalid refresh token",
+                "INVALID_REFRESH_TOKEN"
+            )
 
-        return username
+        return payload
 
     except JWTError:
-        raise_error(401, "Invalid refresh token", "INVALID_REFRESH_TOKEN")
+        raise_error(
+            401,
+            "Invalid refresh token",
+            "INVALID_REFRESH_TOKEN"
+        )

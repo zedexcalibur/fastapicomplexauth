@@ -326,13 +326,12 @@ def test_refresh_token(client):
     csrf_token = response.cookies["csrf_token"]
 
     # Refresh using the refresh token from login.
+    client.cookies.set("refresh_token", old_refresh_token)
+
     response = client.post(
         "/refresh",
         headers={
             "X-CSRF-Token": csrf_token,
-        },
-        cookies={
-            "refresh_token": old_refresh_token,
         },
     )
 
@@ -438,14 +437,14 @@ def test_refresh_token_cannot_be_reused(client):
     csrf_token = response.cookies["csrf_token"]
 
     # Use the original refresh token once.
+    
+    client.cookies.set("refresh_token", old_refresh_token)
+    client.cookies.set("csrf_token", csrf_token)
+
     response = client.post(
         "/refresh",
         headers={
             "X-CSRF-Token": csrf_token,
-        },
-        cookies={
-            "refresh_token": old_refresh_token,
-            "csrf_token": csrf_token,
         },
     )
 
@@ -457,15 +456,14 @@ def test_refresh_token_cannot_be_reused(client):
     # The new refresh token should be different from the old one.
     assert new_refresh_token != old_refresh_token
 
+    client.cookies.set("refresh_token", old_refresh_token)
+    client.cookies.set("csrf_token", csrf_token)
+    
     # Try to use the old refresh token again.
     response = client.post(
         "/refresh",
         headers={
             "X-CSRF-Token": csrf_token,
-        },
-        cookies={
-            "refresh_token": old_refresh_token,
-            "csrf_token": csrf_token,
         },
     )
 
@@ -473,14 +471,13 @@ def test_refresh_token_cannot_be_reused(client):
     assert response.json()["detail"]["code"] == "INVALID_REFRESH_TOKEN"
 
     # The new refresh token should still work.
+    client.cookies.set("refresh_token", new_refresh_token)
+    client.cookies.set("csrf_token", csrf_token)
+
     response = client.post(
         "/refresh",
         headers={
             "X-CSRF-Token": csrf_token,
-        },
-        cookies={
-            "refresh_token": new_refresh_token,
-            "csrf_token": csrf_token,
         },
     )
 
@@ -522,13 +519,12 @@ def test_logout_invalidates_refresh_token(client):
     assert response.status_code == 200
 
     # Try to use the old refresh token.
+    client.cookies.set("refresh_token", refresh_token)
+
     response = client.post(
         "/refresh",
         headers={
             "X-CSRF-Token": csrf_token,
-        },
-        cookies={
-            "refresh_token": refresh_token,
         },
     )
 
@@ -559,13 +555,12 @@ def test_refresh_with_invalid_token(client):
     csrf_token = response.cookies["csrf_token"]
 
     # Try to refresh using an invalid refresh token.
+    client.cookies.set("refresh_token", "this-is-not-a-real-refresh-token")
+
     response = client.post(
         "/refresh",
         headers={
             "X-CSRF-Token": csrf_token,
-        },
-        cookies={
-            "refresh_token": "this-is-not-a-real-refresh-token",
         },
     )
 
@@ -596,13 +591,12 @@ def test_refresh_with_invalid_csrf_token(client):
     refresh_token = response.cookies["refresh_token"]
 
     # Use the refresh token but supply the wrong CSRF token.
+    client.cookies.set("refresh_token", refresh_token)
+
     response = client.post(
         "/refresh",
         headers={
             "X-CSRF-Token": "wrong-csrf-token",
-        },
-        cookies={
-            "refresh_token": refresh_token,
         },
     )
 
@@ -630,13 +624,11 @@ def test_refresh_with_missing_csrf_token(client):
     assert response.status_code == 200
 
     refresh_token = response.cookies["refresh_token"]
+    client.cookies.set("refresh_token", refresh_token)
 
     # Try to refresh without supplying a CSRF token.
     response = client.post(
         "/refresh",
-        cookies={
-            "refresh_token": refresh_token,
-        },
     )
 
     assert response.status_code == 403
@@ -837,14 +829,13 @@ def test_refresh_with_expired_token(client):
 
     csrf_token = "test-csrf-token"
 
+    client.cookies.set("refresh_token", expired_refresh_token)
+    client.cookies.set("csrf_token", csrf_token)
+
     response = client.post(
         "/refresh",
         headers={
             "X-CSRF-Token": csrf_token,
-        },
-        cookies={
-            "refresh_token": expired_refresh_token,
-            "csrf_token": csrf_token,
         },
     )
 
@@ -886,14 +877,13 @@ def test_refresh_with_revoked_token(client):
     assert response.status_code == 200
 
     # Try to use the old refresh token.
+    client.cookies.set("refresh_token", refresh_token)
+    client.cookies.set("csrf_token", csrf_token)
+
     response = client.post(
         "/refresh",
         headers={
             "X-CSRF-Token": csrf_token,
-        },
-        cookies={
-            "refresh_token": refresh_token,
-            "csrf_token": csrf_token,
         },
     )
 
@@ -902,13 +892,12 @@ def test_refresh_with_revoked_token(client):
 def test_refresh_with_missing_refresh_token(client):
     csrf_token = "test-csrf-token"
 
+    client.cookies.set("csrf_token", csrf_token)
+
     response = client.post(
         "/refresh",
         headers={
             "X-CSRF-Token": csrf_token,
-        },
-        cookies={
-            "csrf_token": csrf_token,
         },
     )
 
@@ -994,15 +983,14 @@ def test_refresh_with_missing_sub(client):
 
     csrf_token = "test-csrf-token"
 
+    client.cookies.set("refresh_token", token)
+    client.cookies.set("csrf_token", csrf_token)
+
     # Try to use the refresh token.
     response = client.post(
         "/refresh",
         headers={
             "X-CSRF-Token": csrf_token,
-        },
-        cookies={
-            "refresh_token": token,
-            "csrf_token": csrf_token,
         },
     )
 
@@ -1023,15 +1011,14 @@ def test_refresh_with_wrong_signing_key(client):
 
     csrf_token = "test-csrf-token"
 
+    client.cookies.set("refresh_token", token)
+    client.cookies.set("csrf_token", csrf_token)
+
     # Try to use the incorrectly signed refresh token.
     response = client.post(
         "/refresh",
         headers={
             "X-CSRF-Token": csrf_token,
-        },
-        cookies={
-            "refresh_token": token,
-            "csrf_token": csrf_token,
         },
     )
 
@@ -1434,14 +1421,136 @@ def test_password_reset_invalidates_refresh_token(client, session, monkeypatch):
     assert response.status_code == 200
 
     # The old refresh token should now be rejected.
+    client.cookies.set("refresh_token", refresh_token)
+
     response = client.post(
         "/refresh",
         headers={
             "X-CSRF-Token": csrf_token,
         },
-        cookies={
-            "refresh_token": refresh_token,
+    )
+
+    assert response.status_code == 401
+
+def test_change_password_invalidates_refresh_token(client):
+    user_data = {
+        "username": "zoe",
+        "email": "zoe@example.com",
+        "password": "oldpassword",
+    }
+
+    # Register.
+    response = client.post("/register", json=user_data)
+    assert response.status_code == 200
+
+    # Log in and save the tokens.
+    response = client.post(
+        "/login",
+        json={
+            "username": "zoe",
+            "password": "oldpassword",
+        },
+    )
+
+    assert response.status_code == 200
+
+    access_token = response.json()["access_token"]
+    refresh_token = response.cookies["refresh_token"]
+    csrf_token = response.cookies["csrf_token"]
+
+    # Change the password.
+    response = client.post(
+        "/change-password",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "X-CSRF-Token": csrf_token,
+        },
+        json={
+            "current_password": "oldpassword",
+            "new_password": "newpassword",
+        },
+    )
+
+    assert response.status_code == 200
+
+    # Try to use the old refresh token.
+    client.cookies.set("refresh_token", refresh_token)
+    response = client.post(
+        "/refresh",
+        headers={
+            "X-CSRF-Token": csrf_token,
         },
     )
 
     assert response.status_code == 401
+    assert response.json()["detail"]["code"] == "INVALID_REFRESH_TOKEN"
+
+def test_change_email_updates_email(client, session):
+    user_data = {
+        "username": "zoe",
+        "email": "old@example.com",
+        "password": "secretpassword",
+    }
+
+    # Register.
+    response = client.post("/register", json=user_data)
+    assert response.status_code == 200
+
+    # Log in.
+    response = client.post(
+        "/login",
+        json={
+            "username": "zoe",
+            "password": "secretpassword",
+        },
+    )
+
+    assert response.status_code == 200
+
+    access_token = response.json()["access_token"]
+    csrf_token = response.cookies["csrf_token"]
+
+    # Change the email.
+    response = client.post(
+        "/change-email",
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "X-CSRF-Token": csrf_token,
+        },
+        json={
+            "new_email": "new@example.com",
+        },
+    )
+
+    assert response.status_code == 200
+
+    # Check the database.
+    user = session.exec(
+        select(User).where(User.username == "zoe")
+    ).first()
+
+    assert user is not None
+    assert user.email == "new@example.com"
+
+def test_register_with_duplicate_email(client):
+    first_user = {
+        "username": "zoe",
+        "email": "zoe@example.com",
+        "password": "secretpassword",
+    }
+
+    second_user = {
+        "username": "alice",
+        "email": "zoe@example.com",
+        "password": "anotherpassword",
+    }
+
+    # Register the first user.
+    response = client.post("/register", json=first_user)
+    assert response.status_code == 200
+
+    # Try to register another user with the same email.
+    response = client.post("/register", json=second_user)
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["code"] == "USER_ALREADY_EXISTS"
