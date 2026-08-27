@@ -83,3 +83,10 @@ The application is then available at:
 
 Press `Ctrl+C` in the terminal or run:
   docker compose -f compose.production.yaml down
+
+## Password reset emails
+
+Development uses [Mailpit](https://mailpit.axllent.org/) as a local SMTP server. 
+Emails are not sent externally; they are captured by Mailpit and can be viewed through its web interface at http://localhost:8025
+
+Email sending is currently disabled in production.

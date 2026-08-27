@@ -5,10 +5,10 @@ from fastapi.security import HTTPBearer
 from jose import jwt, JWTError
 from passlib.context import CryptContext
 
+from app.core.config import settings
+
 from app.core.exceptions import raise_error
 
-SECRET_KEY = "super-secret-key"
-REFRESH_SECRET_KEY = "super-secret-refresh-key"
 ALGORITHM = "HS256"
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -48,7 +48,7 @@ def create_access_token(
     if token_version is not None:
         to_encode.update({"token_version": token_version})
 
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode(to_encode, settings.secret_key, algorithm=ALGORITHM)
 
 def create_refresh_token(data: dict, token_version: int | None = None):
     to_encode = data.copy()
@@ -67,7 +67,7 @@ def create_refresh_token(data: dict, token_version: int | None = None):
 
     return jwt.encode(
         to_encode,
-        REFRESH_SECRET_KEY,
+        settings.refresh_secret_key,
         algorithm=ALGORITHM
     )
 
@@ -88,7 +88,7 @@ def decode_refresh_token(refresh_token: str) -> dict:
     try:
         payload = jwt.decode(
             refresh_token,
-            REFRESH_SECRET_KEY,
+            settings.refresh_secret_key,
             algorithms=[ALGORITHM]
         )
 

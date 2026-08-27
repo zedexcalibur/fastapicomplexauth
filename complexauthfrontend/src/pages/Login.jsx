@@ -10,7 +10,7 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const [username, setUsername] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -19,7 +19,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await login(username, password);
+      await login(identifier, password);
       toast.success("Logged in");
       navigate("/dashboard");
     } catch {
@@ -34,8 +34,8 @@ export default function Login() {
       <form className={styles.form} onSubmit={handleSubmit}>
         <input
           placeholder="Username or email"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
           className={styles.input}
         />
 

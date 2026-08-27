@@ -11,9 +11,9 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-async function login(username, password) {
+async function login(identifier, password) {
   const res = await api.post("/login", {
-    username, 
+    identifier, 
     password
   });
 

@@ -4,9 +4,10 @@ from jose import jwt, JWTError
 from sqlmodel import Session, select
 from sqlalchemy import or_
 
+from app.core.config import settings
 from app.core.exceptions import raise_error
 from app.database import get_session
-from app.models import User, RefreshToken, PasswordReset
+from app.models import User, RefreshToken
 from app.auth.security import (
     create_access_token,
     create_refresh_token,
@@ -14,8 +15,6 @@ from app.auth.security import (
     hash_password,
     verify_password,
     oauth2_scheme,
-    SECRET_KEY,
-    REFRESH_SECRET_KEY,
     ALGORITHM,
     REFRESH_TOKEN_EXPIRE_DAYS
 )
@@ -46,18 +45,18 @@ def register_user(session: Session, data):
 
 def login_user(session: Session, form_data):
 
-    user = session.exec(
-        select(User).where(
-            (User.username == form_data.username) |
-            (User.email == form_data.username)
-        )
-    ).first()
+    user = authenticate_user(
+        session,
+        form_data.identifier,
+        form_data.password
+    )
 
     if not user:
-        raise_error(401, "Invalid credentials", "INVALID_CREDENTIALS")
-
-    if not verify_password(form_data.password, user.password):
-        raise_error(401, "Invalid credentials", "INVALID_CREDENTIALS")
+        raise_error(
+            401,
+            "Invalid credentials",
+            "INVALID_CREDENTIALS"
+        )
 
     access_token = create_access_token(
         {
@@ -73,14 +72,17 @@ def login_user(session: Session, form_data):
 
     decoded = jwt.decode(
         refresh_token,
-        REFRESH_SECRET_KEY,
+        settings.refresh_secret_key,
         algorithms=[ALGORITHM]
     )
 
     db_refresh = RefreshToken(
         token=refresh_token,
         username=user.username,
-        expires_at=datetime.fromtimestamp(decoded["exp"], timezone.utc),
+        expires_at=datetime.fromtimestamp(
+            decoded["exp"],
+            timezone.utc
+        ),
         revoked=False
     )
 
@@ -130,8 +132,8 @@ def refresh_user(session: Session, refresh_token: str):
     if not user:
         raise_error(
             401,
-            "User not found",
-            "USER_NOT_FOUND"
+            "Invalid refresh token",
+            "INVALID_REFRESH_TOKEN"
         )
 
     if token_version != user.token_version:
@@ -179,7 +181,7 @@ def get_current_user(
     try:
         payload = jwt.decode(
             token.credentials,
-            SECRET_KEY,
+            settings.secret_key,
             algorithms=[ALGORITHM]
         )
     except JWTError:
@@ -195,12 +197,12 @@ def get_current_user(
     ).first()
 
     if not user:
-        raise_error(401, "User not found", "USER_NOT_FOUND")
+        raise_error(401, "Invalid token", "INVALID_TOKEN")
 
     token_version = payload.get("token_version")
 
     if token_version is None:
-        raise_error(401, "Invalid token version", "INVALID_TOKEN_VERSION")
+        raise_error(401, "Invalid token", "INVALID_TOKEN")
 
     if token_version != user.token_version:
         raise_error(401, "Token revoked", "TOKEN_REVOKED")

@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from sqlmodel import select, Session
 from urllib.parse import quote
 
+from app.core.config import settings
 from app.core.exceptions import raise_error
 from app.database import get_session
 from app.models import User, PasswordReset, RefreshToken
@@ -61,7 +62,7 @@ def login(data: LoginRequest, session: Session = Depends(get_session)):
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,  # True in production
+        secure=settings.environment == "production",
         samesite="lax",
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         path="/",
@@ -71,7 +72,7 @@ def login(data: LoginRequest, session: Session = Depends(get_session)):
         key="csrf_token",
         value=csrf_token,
         httponly=False,
-        secure=False,
+        secure=settings.environment == "production",
         samesite="lax",
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         path="/",
@@ -97,7 +98,7 @@ def refresh(
         key="refresh_token",
         value=refresh,
         httponly=True,
-        secure=False,   # dev only
+        secure=settings.environment == "production",
         samesite="lax",
         max_age=7 * 24 * 60 * 60
     )
@@ -157,9 +158,6 @@ def forgot_password(
     session.commit()
 
     reset_link = f"http://localhost:5173/reset-password?token={quote(token)}"
-    
-    print("REAL TOKEN:", token, flush=True)
-    # prints the real one to the console
 
     send_email(
         to_email=user.email,

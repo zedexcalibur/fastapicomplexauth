@@ -6,7 +6,7 @@ class RegisterRequest(BaseModel):
     password: str
 
 class LoginRequest(BaseModel):
-    username: str
+    identifier: str
     password: str
 
 class ForgotPasswordRequest(BaseModel):

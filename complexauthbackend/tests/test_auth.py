@@ -6,7 +6,8 @@ from app.models import User, PasswordReset
 from datetime import datetime, timedelta, timezone
 from jose import jwt
 
-from app.auth.security import SECRET_KEY, ALGORITHM, REFRESH_SECRET_KEY
+from app.auth.security import ALGORITHM
+from app.core.config import settings
 
 def test_register_user(client, session):
     response = client.post(
@@ -66,7 +67,7 @@ def test_login_user(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
@@ -101,7 +102,7 @@ def test_login_wrong_password(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "wrongpassword",
         },
     )
@@ -125,7 +126,7 @@ def test_get_current_user(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
@@ -179,7 +180,7 @@ def test_change_password(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
@@ -220,7 +221,7 @@ def test_change_password_wrong_current_password(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
@@ -262,7 +263,7 @@ def test_logout_invalidates_access_token(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
@@ -315,7 +316,7 @@ def test_refresh_token(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
@@ -401,7 +402,7 @@ def test_login_with_email(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe@example.com",
+            "identifier": "zoe@example.com",
             "password": "secretpassword",
         },
     )
@@ -426,7 +427,7 @@ def test_refresh_token_cannot_be_reused(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
@@ -498,7 +499,7 @@ def test_logout_invalidates_refresh_token(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
@@ -546,7 +547,7 @@ def test_refresh_with_invalid_token(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
@@ -582,7 +583,7 @@ def test_refresh_with_invalid_csrf_token(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
@@ -617,7 +618,7 @@ def test_refresh_with_missing_csrf_token(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
@@ -649,7 +650,7 @@ def test_change_password_invalidates_access_token(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
@@ -710,7 +711,7 @@ def test_change_email_duplicate_email(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
@@ -752,7 +753,7 @@ def test_get_current_user_with_expired_access_token(client):
             "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
             "token_version": 0,
         },
-        SECRET_KEY,
+        settings.secret_key,
         algorithm=ALGORITHM,
     )
 
@@ -801,7 +802,7 @@ def test_get_current_user_with_missing_token_version(client):
             "sub": "zoe",
             "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
         },
-        SECRET_KEY,
+        settings.secret_key,
         algorithm=ALGORITHM,
     )
 
@@ -823,7 +824,7 @@ def test_refresh_with_expired_token(client):
             "exp": datetime.now(timezone.utc) - timedelta(minutes=1),
             "jti": "test-jti",
         },
-        REFRESH_SECRET_KEY,
+        settings.refresh_secret_key,
         algorithm=ALGORITHM,
     )
 
@@ -856,7 +857,7 @@ def test_refresh_with_revoked_token(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
@@ -921,7 +922,7 @@ def test_get_current_user_with_missing_sub(client):
             "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
             "token_version": 0,
         },
-        SECRET_KEY,
+        settings.secret_key,
         algorithm=ALGORITHM,
     )
 
@@ -955,7 +956,7 @@ def test_get_current_user_with_wrong_token_version(client):
             "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
             "token_version": 999,
         },
-        SECRET_KEY,
+        settings.secret_key,
         algorithm=ALGORITHM,
     )
 
@@ -977,7 +978,7 @@ def test_refresh_with_missing_sub(client):
             "exp": datetime.now(timezone.utc) + timedelta(days=7),
             "jti": secrets.token_urlsafe(32),
         },
-        REFRESH_SECRET_KEY,
+        settings.refresh_secret_key,
         algorithm=ALGORITHM,
     )
 
@@ -1005,7 +1006,7 @@ def test_refresh_with_wrong_signing_key(client):
             "exp": datetime.now(timezone.utc) + timedelta(days=7),
             "jti": secrets.token_urlsafe(32),
         },
-        SECRET_KEY,
+        settings.secret_key,
         algorithm=ALGORITHM,
     )
 
@@ -1043,7 +1044,7 @@ def test_get_current_user_with_wrong_signing_key(client):
             "exp": datetime.now(timezone.utc) + timedelta(minutes=30),
             "token_version": 0,
         },
-        REFRESH_SECRET_KEY,
+        settings.refresh_secret_key,
         algorithm=ALGORITHM,
     )
 
@@ -1120,7 +1121,7 @@ def test_successful_password_reset(client, session, monkeypatch):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "oldpassword",
         },
     )
@@ -1131,7 +1132,7 @@ def test_successful_password_reset(client, session, monkeypatch):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "newpassword",
         },
     )
@@ -1293,7 +1294,7 @@ def test_password_reset_invalidates_access_token(client, session, monkeypatch):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "oldpassword",
         },
     )
@@ -1373,7 +1374,7 @@ def test_password_reset_invalidates_refresh_token(client, session, monkeypatch):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "oldpassword",
         },
     )
@@ -1447,7 +1448,7 @@ def test_change_password_invalidates_refresh_token(client):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "oldpassword",
         },
     )
@@ -1500,7 +1501,7 @@ def test_change_email_updates_email(client, session):
     response = client.post(
         "/login",
         json={
-            "username": "zoe",
+            "identifier": "zoe",
             "password": "secretpassword",
         },
     )
