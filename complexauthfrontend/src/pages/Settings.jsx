@@ -23,13 +23,17 @@ export default function Settings() {
   }
 
   async function handleEmailChange() {
-    await api.post("/change-email", {
-      new_email: newEmail,
-    });
+    try {
+      await api.post("/change-email", {
+        new_email: newEmail,
+      });
 
-    await refreshUser();
+      await refreshUser();
 
-    toast.success("Email updated");
+      toast.success("Email updated");
+    } catch {
+      toast.error("Something went wrong.");
+    }
   }
 
   return (
